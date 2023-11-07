@@ -1,10 +1,11 @@
 from flask import Flask, jsonify, request
 from datetime import datetime
-import json 
+import json
 
-from db import  insert_database, select_database
+from db import insert_database, select_database
 
 app = Flask(__name__)
+
 
 @app.get("/")
 def get_home():
@@ -20,6 +21,7 @@ def get_mail():
     except:
         return "Internal Server Error", 500
 
+
 @app.get("/mail/<start_date>/<end_date>")
 def get_mail_range(start_date, end_date):
     try:
@@ -28,6 +30,7 @@ def get_mail_range(start_date, end_date):
         return jsonify(result), 200
     except:
         return "Internal Server Error", 500
+
 
 @app.get("/users/<uid>")
 def get_mail_user(uid):
@@ -43,6 +46,7 @@ def get_mail_user(uid):
     except:
         return "Internal Server Error", 500
 
+
 @app.get("/users")
 def get_users():
     try:
@@ -52,17 +56,24 @@ def get_users():
     except:
         return "Internal Server Error", 500
 
+
 @app.post("/users")
 def post_new_user():
-    request_json = request.get_json() 
+    request_json = request.get_json()
     required_fields = ["first_name", "last_name", "email"]
-    if any((field not in request_json or not isinstance(request_json[field], str)) for field in required_fields):
+    if any(
+        (field not in request_json or not isinstance(request_json[field], str))
+        for field in required_fields
+    ):
         return "Invalid first name, last name, or email", 400
     try:
-        email, first_name, last_name = request_json["email"], request_json["first_name"] ,request_json["last_name"]
+        email, first_name, last_name = (
+            request_json["email"],
+            request_json["first_name"],
+            request_json["last_name"],
+        )
         query = f"INSERT INTO users (uid, email, first_name, last_name) VALUES (DEFAULT, '{email}', '{first_name}', '{last_name}');"
         result = insert_database(query)
         return jsonify(result), 200
     except:
         return "Internal Server Error", 500
-

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def insert_database(query):
     try:
         connection = psycopg2.connect(
