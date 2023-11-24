@@ -25,7 +25,14 @@ def get_mail():
 @app.get("/mail/<start_date>/<end_date>")
 def get_mail_range(start_date, end_date):
     try:
-        query = f"SELECT * FROM mail WHERE mail.time >= '{start_date}' AND mail.time <= '{end_date}'"
+        start_date_epoch = int(start_date) / 1000 
+        end_date_epoch = int(end_date) / 1000
+    except:
+        return "Start Date or End Date is not a valid epoch timestamp", 404
+    try:
+        start_date_utc = datetime.fromtimestamp(start_date_epoch)
+        end_date_utc = datetime.fromtimestamp(end_date_epoch)
+        query = f"SELECT * FROM mail WHERE mail.time >= '{start_date_utc}' AND mail.time <= '{end_date_utc}'"
         result = select_database(query)
         return result, 200
     except:
@@ -109,3 +116,7 @@ def post_new_user():
         return err.pgerror, 400
     except Exception as err:
         return "Internal Server Error", 500
+    
+
+if __name__ == "__main__":
+    app.run()
