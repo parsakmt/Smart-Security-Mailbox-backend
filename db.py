@@ -7,19 +7,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-connection = psycopg2.connect(
-    user=os.getenv("DATABASE_USER"),
-    password=os.getenv("DATABASE_PASSWORD"),
-    host=os.getenv("DATABASE_HOST"),
-    port=os.getenv("DATABASE_PORT"),
-    dbname=os.getenv("DATABASE_NAME"),
-    sslmode=os.getenv("DATABASE_SSLMODE"),
-)
-cursor = connection.cursor(cursor_factory=RealDictCursor)
-
 
 def insert_database(query):
     try:
+        connection = psycopg2.connect(
+            user=os.getenv("DATABASE_USER"),
+            password=os.getenv("DATABASE_PASSWORD"),
+            host=os.getenv("DATABASE_HOST"),
+            port=os.getenv("DATABASE_PORT"),
+            dbname=os.getenv("DATABASE_NAME"),
+            sslmode=os.getenv("DATABASE_SSLMODE"),
+        )
+        cursor = connection.cursor(cursor_factory=RealDictCursor)
         cursor.execute(query)
         connection.commit()
         return dict(cursor.fetchone())
@@ -30,6 +29,15 @@ def insert_database(query):
 
 def select_database(query):
     try:
+        connection = psycopg2.connect(
+            user=os.getenv("DATABASE_USER"),
+            password=os.getenv("DATABASE_PASSWORD"),
+            host=os.getenv("DATABASE_HOST"),
+            port=os.getenv("DATABASE_PORT"),
+            dbname=os.getenv("DATABASE_NAME"),
+            sslmode=os.getenv("DATABASE_SSLMODE"),
+        )
+        cursor = connection.cursor(cursor_factory=RealDictCursor)
         cursor.execute(query)
         results = [dict(dict_row) for dict_row in cursor.fetchall()]
         return results
