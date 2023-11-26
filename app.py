@@ -28,7 +28,7 @@ def get_mail_range(start_date, end_date):
         start_date_epoch = int(start_date) / 1000 
         end_date_epoch = int(end_date) / 1000
     except:
-        return "Start Date or End Date is not a valid epoch timestamp", 404
+        return "Start Date or End Date is not a valid epoch timestamp", 400
     try:
         start_date_utc = datetime.fromtimestamp(start_date_epoch)
         end_date_utc = datetime.fromtimestamp(end_date_epoch)
@@ -52,9 +52,9 @@ def get_user_mail(uid):
 @app.post("/mail")
 def post_mail():
     try:
-        uid = request.get_json()["uid"]
+        uid = int(request.get_json()["uid"])
     except:
-        return "User id is an invalid type", 404
+        return "User id is an invalid type", 400
 
     try:
         count = select_database(
@@ -74,7 +74,7 @@ def get_mail_user(uid):
     try:
         uid = int(uid)
     except:
-        return "User id is an invalid type", 404
+        return "User id is an invalid type", 400
 
     try:
         query = f"SELECT * FROM mail WHERE mail.uid = {uid}"
