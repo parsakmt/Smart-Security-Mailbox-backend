@@ -97,19 +97,20 @@ def get_users():
 @app.post("/users")
 def post_new_user():
     request_json = request.get_json()
-    required_fields = ["first_name", "last_name", "email"]
+    required_fields = ["first_name", "last_name", "email", "mac_address"]
     if any(
         (field not in request_json or not isinstance(request_json[field], str))
         for field in required_fields
     ):
-        return "Invalid first name, last name, or email", 400
+        return "Invalid first name, last name, email, or mac address", 400
     try:
-        email, first_name, last_name = (
+        email, first_name, last_name, mac_address = (
             request_json["email"],
             request_json["first_name"],
             request_json["last_name"],
+            request_json["mac_address"]
         )
-        query = f"INSERT INTO users (uid, email, first_name, last_name) VALUES (DEFAULT, '{email}', '{first_name}', '{last_name}') RETURNING *;"
+        query = f"INSERT INTO users (uid, email, first_name, last_name, mac_address) VALUES (DEFAULT, '{email}', '{first_name}', '{last_name}', '{mac_address}') RETURNING *;"
         result = insert_database(query)
         return result, 200
     except UniqueViolation as err:
