@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
+# HELPER FUNCTIONS 
 def insert_database(query):
     try:
         connection = psycopg2.connect(
@@ -17,6 +17,7 @@ def insert_database(query):
             port=os.getenv("DATABASE_PORT"),
             dbname=os.getenv("DATABASE_NAME"),
             sslmode=os.getenv("DATABASE_SSLMODE"),
+            sslrootcert=os.getenv("DATABASE_SSL_CERT_ROOT"),
         )
         cursor = connection.cursor(cursor_factory=RealDictCursor)
         cursor.execute(query)
@@ -36,6 +37,7 @@ def select_database(query):
             port=os.getenv("DATABASE_PORT"),
             dbname=os.getenv("DATABASE_NAME"),
             sslmode=os.getenv("DATABASE_SSLMODE"),
+            sslrootcert=os.getenv("DATABASE_SSL_CERT_ROOT"),
         )
         cursor = connection.cursor(cursor_factory=RealDictCursor)
         cursor.execute(query)
@@ -44,3 +46,5 @@ def select_database(query):
     except (Exception, Error) as error:
         print(f"Table Selection Error: {error}")
         raise error
+
+    
