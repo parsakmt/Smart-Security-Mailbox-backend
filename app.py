@@ -129,20 +129,59 @@ def get_user_email(email):
 @app.post("/users")
 def post_new_user():
     request_json = request.get_json()
-    required_fields = ["first_name", "last_name", "email", "mac_address"]
+    required_fields = [
+        "first_name",
+        "last_name",
+        "email",
+        "mac_address",
+        "service_uuid",
+        "ssid_characteristic_uuid",
+        "password_characteristic_uuid",
+        "uid_characteristic_uuid",
+        "wifi_ssid",
+        "wifi_password",
+    ]
+
     if any(
         (field not in request_json or not isinstance(request_json[field], str))
         for field in required_fields
     ):
-        return "Invalid first name, last name, email, or mac address", 400
+        return "A field is not valid or present", 400
     try:
-        email, first_name, last_name, mac_address = (
+        (
+            email,
+            first_name,
+            last_name,
+            mac_address,
+            service_uuid,
+            ssid_characteristic_uuid,
+            password_characteristic_uuid,
+            uid_characteristic_uuid,
+            wifi_ssid,
+            wifi_password,
+        ) = (
             request_json["email"],
             request_json["first_name"],
             request_json["last_name"],
             request_json["mac_address"],
+            request_json["service_uuid"],
+            request_json["ssid_characteristic_uuid"],
+            request_json["password_characteristic_uuid"],
+            request_json["uid_characteristic_uuid"],
+            request_json["wifi_ssid"],
+            request_json["wifi_password"],
         )
-        query = f"INSERT INTO users (uid, email, first_name, last_name, mac_address) VALUES (DEFAULT, '{email}', '{first_name}', '{last_name}', '{mac_address}') RETURNING *;"
+        query = f"""
+            INSERT INTO users (
+                uid, email, first_name, last_name, mac_address,
+                service_uuid, ssid_characteristic_uuid, password_characteristic_uuid,
+                uid_characteristic_uuid, wifi_ssid, wifi_password
+            ) VALUES (
+                DEFAULT, '{email}', '{first_name}', '{last_name}', '{mac_address}',
+                '{service_uuid}', '{ssid_characteristic_uuid}', '{password_characteristic_uuid}',
+                '{uid_characteristic_uuid}', '{wifi_ssid}', '{wifi_password}'
+            ) RETURNING *;
+        """
         result = db.insert_database(query)
         return result, 200
     except UniqueViolation as err:
@@ -155,7 +194,6 @@ def post_new_user():
 def delete_user_email(email):
     try:
         query = f"DELETE FROM users WHERE email='{email}' RETURNING *"
-        print(query)
         result = db.select_database(query)
         return result, 200
     except Error as e:
