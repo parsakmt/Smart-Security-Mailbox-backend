@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# HELPER FUNCTIONS 
+
+# HELPER FUNCTIONS
 def insert_database(query):
     try:
         connection = psycopg2.connect(
@@ -41,10 +42,9 @@ def select_database(query):
         )
         cursor = connection.cursor(cursor_factory=RealDictCursor)
         cursor.execute(query)
+        connection.commit()
         results = [dict(dict_row) for dict_row in cursor.fetchall()]
         return results
     except (Exception, Error) as error:
         print(f"Table Selection Error: {error}")
         raise error
-
-    
