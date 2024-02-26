@@ -91,6 +91,53 @@ def post_mail():
         return "Internal Server Error", 500
 
 
+@app.get("/mailbox_status")
+def get_mailbox_status():
+    try:
+        query = "SELECT * FROM mailbox_status"
+        result = db.select_database(query)
+        return result, 200
+    except Exception as e:
+        return f"{e}", 500
+
+
+@app.get("/mailbox_status/<uid>")
+def get_mailbox_status_uid(uid):
+    try:
+        uid = int(uid)
+    except:
+        return "User id is an invalid type", 400
+
+    try:
+        query = f"SELECT * FROM mailbox_status WHERE uid = {uid}"
+        result = db.select_database(query)
+        return result, 200
+    except Exception as e:
+        return f"{e}", 500
+
+
+@app.post("/mailbox_status")
+def post_mailbox_status():
+    try:
+        json = request.get_json()
+        uid = int(json["uid"])
+        has_mail = json["contains_mail"]
+    except:
+        return (
+            "User id is an invalid type or contains mail boolean is not provided",
+            400,
+        )
+
+    try:
+        query = f"UPDATE mailbox_status SET contains_mail = {has_mail} WHERE uid = {uid} RETURNING *;"
+        result = db.select_database(query)
+        return result, 200
+    except UniqueViolation as err:
+        return err.pgerror, 400
+    except Exception as err:
+        return f"Internal Server Error: {err}", 500
+
+
 @app.get("/users")
 def get_users():
     try:
@@ -171,7 +218,7 @@ def post_new_user():
             request_json["wifi_ssid"],
             request_json["wifi_password"],
         )
-        query = f"""
+        user_query = f"""
             INSERT INTO users (
                 uid, email, first_name, last_name, mac_address,
                 service_uuid, ssid_characteristic_uuid, password_characteristic_uuid,
@@ -182,7 +229,16 @@ def post_new_user():
                 '{uid_characteristic_uuid}', '{wifi_ssid}', '{wifi_password}'
             ) RETURNING *;
         """
-        result = db.insert_database(query)
+        result = db.insert_database(user_query)
+        uid = result["uid"]
+        mailbox_status_query = f"""
+            INSERT INTO mailbox_status (
+                uid, contains_mail
+            ) VALUES (
+                {uid}, {False}
+            ) RETURNING *;
+        """
+        db.insert_database(mailbox_status_query)
         return result, 200
     except UniqueViolation as err:
         return err.pgerror, 400
