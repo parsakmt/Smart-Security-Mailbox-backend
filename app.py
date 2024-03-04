@@ -5,6 +5,7 @@ from psycopg2.errors import UniqueViolation
 from psycopg2 import Error
 from psycopg2.extras import RealDictCursor
 
+import requests
 import os
 from helpers import db
 from helpers import messaging
@@ -253,6 +254,38 @@ def delete_user_email(email):
         query = f"DELETE FROM users WHERE email='{email}' RETURNING *"
         result = db.select_database(query)
         return result, 200
+    except Error as e:
+        return "Internal Server Error", 500
+
+
+@app.route("/users/<uid>/<auth_id>", methods=["DELETE"])
+def delete_user_uid(uid, auth_id):
+    try:
+        query_users = f"DELETE FROM users WHERE uid='{uid}' RETURNING *"
+        query_tokens = f"DELETE FROM device_tokens WHERE uid='{uid}' RETURNING *"
+        query_mail = f"DELETE FROM mail WHERE uid='{uid}' RETURNING *"
+        query_mailbox_status = (
+            f"DELETE FROM mailbox_status WHERE uid='{uid}' RETURNING *"
+        )
+        result_users = db.select_database(query_users)
+        result_tokens = db.select_database(query_tokens)
+        result_mail = db.select_database(query_mail)
+        result_mailbox_status = db.select_database(query_mailbox_status)
+
+        # Delete user from auth0
+        with open("auth0_api_management_token.txt") as f:
+            token = f.read()
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.request(
+            "DELETE",
+            f"{os.getenv('AUTH0_API_MANAGEMENT_ENDPOINT')}/api/v2/users/{auth_id}",
+            headers=headers,
+            data={},
+        )
+        if response.status_code == 204:
+            return f"User {uid} deleted", 200
+        else:
+            return f"User {uid} failed to delete by Auth0", 400
     except Error as e:
         return "Internal Server Error", 500
 
