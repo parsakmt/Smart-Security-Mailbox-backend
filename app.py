@@ -5,8 +5,10 @@ from psycopg2.errors import UniqueViolation
 from psycopg2 import Error
 from psycopg2.extras import RealDictCursor
 
+import requests
 import os
 from helpers import db
+from helpers import messaging
 
 app = Flask(__name__)
 
@@ -91,6 +93,53 @@ def post_mail():
         return "Internal Server Error", 500
 
 
+@app.get("/mailbox_status")
+def get_mailbox_status():
+    try:
+        query = "SELECT * FROM mailbox_status"
+        result = db.select_database(query)
+        return result, 200
+    except Exception as e:
+        return "Internal Server Error", 500
+
+
+@app.get("/mailbox_status/<uid>")
+def get_mailbox_status_uid(uid):
+    try:
+        uid = int(uid)
+    except:
+        return "User id is an invalid type", 400
+
+    try:
+        query = f"SELECT * FROM mailbox_status WHERE uid = {uid}"
+        result = db.select_database(query)
+        return result, 200
+    except Exception as e:
+        return "Internal Server Error", 500
+
+
+@app.post("/mailbox_status")
+def post_mailbox_status():
+    try:
+        json = request.get_json()
+        uid = int(json["uid"])
+        has_mail = json["contains_mail"]
+    except:
+        return (
+            "User id is an invalid type or contains mail boolean is not provided",
+            400,
+        )
+
+    try:
+        query = f"UPDATE mailbox_status SET contains_mail = {has_mail} WHERE uid = {uid} RETURNING *;"
+        result = db.select_database(query)
+        return result, 200
+    except UniqueViolation as err:
+        return err.pgerror, 400
+    except Exception as err:
+        return f"Internal Server Error: {err}", 500
+
+
 @app.get("/users")
 def get_users():
     try:
@@ -171,7 +220,7 @@ def post_new_user():
             request_json["wifi_ssid"],
             request_json["wifi_password"],
         )
-        query = f"""
+        user_query = f"""
             INSERT INTO users (
                 uid, email, first_name, last_name, mac_address,
                 service_uuid, ssid_characteristic_uuid, password_characteristic_uuid,
@@ -182,12 +231,21 @@ def post_new_user():
                 '{uid_characteristic_uuid}', '{wifi_ssid}', '{wifi_password}'
             ) RETURNING *;
         """
-        result = db.insert_database(query)
+        result = db.insert_database(user_query)
+        uid = result["uid"]
+        mailbox_status_query = f"""
+            INSERT INTO mailbox_status (
+                uid, contains_mail
+            ) VALUES (
+                {uid}, {False}
+            ) RETURNING *;
+        """
+        db.insert_database(mailbox_status_query)
         return result, 200
     except UniqueViolation as err:
         return err.pgerror, 400
     except Exception as err:
-        return f"Internal Server Error", 500
+        return "Internal Server Error", 500
 
 
 @app.route("/users/<email>", methods=["DELETE"])
@@ -197,7 +255,100 @@ def delete_user_email(email):
         result = db.select_database(query)
         return result, 200
     except Error as e:
-        return f"{e}", 500
+        return "Internal Server Error", 500
+
+
+@app.route("/users/<uid>/<auth_id>", methods=["DELETE"])
+def delete_user_uid(uid, auth_id):
+    try:
+        query_users = f"DELETE FROM users WHERE uid='{uid}' RETURNING *"
+        query_tokens = f"DELETE FROM device_tokens WHERE uid='{uid}' RETURNING *"
+        query_mail = f"DELETE FROM mail WHERE uid='{uid}' RETURNING *"
+        query_mailbox_status = (
+            f"DELETE FROM mailbox_status WHERE uid='{uid}' RETURNING *"
+        )
+        result_users = db.select_database(query_users)
+        result_tokens = db.select_database(query_tokens)
+        result_mail = db.select_database(query_mail)
+        result_mailbox_status = db.select_database(query_mailbox_status)
+
+        # Delete user from auth0
+        with open("auth0_api_management_token.txt") as f:
+            token = f.read()
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.request(
+            "DELETE",
+            f"{os.getenv('AUTH0_API_MANAGEMENT_ENDPOINT')}/api/v2/users/{auth_id}",
+            headers=headers,
+            data={},
+        )
+        if response.status_code == 204:
+            return f"User {uid} deleted", 200
+        else:
+            return f"User {uid} failed to delete by Auth0", 400
+    except Error as e:
+        return "Internal Server Error", 500
+
+
+@app.get("/device_tokens")
+def get_device_tokens():
+    try:
+        query = "SELECT * FROM device_tokens"
+        result = db.select_database(query)
+        return result, 200
+    except Exception as e:
+        return "Internal Server Error", 500
+
+
+@app.get("/device_tokens/<uid>")
+def get_device_tokens_uid(uid):
+    try:
+        uid = int(uid)
+    except:
+        return "User id is an invalid type", 400
+
+    try:
+        query = f"SELECT token FROM device_tokens WHERE uid={uid}"
+        result = db.select_database(query)
+        result = [user["token"] for user in result]
+        return result, 200
+    except Exception as e:
+        return "Internal Server Error", 500
+
+
+@app.post("/device_tokens")
+def post_device_tokens():
+    try:
+        uid = int(request.get_json()["uid"])
+    except:
+        return "User id is an invalid type", 400
+    token = request.get_json()["token"]
+
+    try:
+        query = f"INSERT INTO device_tokens (uid, token) VALUES('{uid}', '{token}') RETURNING *;"
+        result = db.insert_database(query)
+        return result, 200
+    except UniqueViolation as err:
+        return err.pgerror, 400
+    except Exception as err:
+        return "Internal Server Error", 500
+
+
+@app.post("/notify")
+def post_notify():
+    try:
+        uid = int(request.get_json()["uid"])
+    except:
+        return "User id is an invalid type", 400
+
+    try:
+        tokens = get_device_tokens_uid(uid)[0]
+        messaging.send_to_token(tokens)
+        return "Notification Sent", 200
+    except UniqueViolation as err:
+        return err.pgerror, 400
+    except Exception as err:
+        return "Internal Server Error", 500
 
 
 if __name__ == "__main__":
